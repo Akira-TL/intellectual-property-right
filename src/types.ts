@@ -1,7 +1,5 @@
 export type RiskColor = "red" | "orange" | "yellow" | "green";
 
-export type DemoMode = "prophet" | "eagleeye" | "judgeassistant";
-
 export interface ProphetCase {
   id: string;
   title: string;
@@ -59,12 +57,6 @@ export interface TechStackSection {
   layer: string;
   purpose: string;
   items: string[];
-}
-
-export interface ModeNarration {
-  title: string;
-  bullets: string[];
-  closingLine: string;
 }
 
 export interface AgentIntegrationConfig {

@@ -3,6 +3,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -17,6 +18,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { useEffect, useState } from "react";
 import { ProphetCase, RiskColor } from "../types";
 
 interface ProphetPanelProps {
@@ -73,6 +75,12 @@ export function ProphetPanel({
 }: ProphetPanelProps) {
   const riskView = riskTheme[selectedCase.riskColor];
   const confidenceValue = Math.round(selectedCase.confidence * 100);
+  // Reveal details in three steps: risk -> legal basis -> precedents and action.
+  const [detailStage, setDetailStage] = useState<1 | 2 | 3>(1);
+
+  useEffect(() => {
+    setDetailStage(1);
+  }, [selectedCase.id]);
 
   return (
     <Grid container spacing={2.5} className="fade-up stagger-1">
@@ -153,89 +161,125 @@ export function ProphetPanel({
               />
             </Box>
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" mb={1}>
-                  法律依据摘要
-                </Typography>
-                <Stack spacing={1}>
-                  {selectedCase.legalBasis.map((item) => (
-                    <Chip
-                      key={item}
-                      icon={<GavelOutlinedIcon />}
-                      label={item}
-                      variant="outlined"
-                      sx={{
-                        justifyContent: "flex-start",
-                        height: "auto",
-                        py: 0.5,
-                      }}
-                    />
-                  ))}
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" mb={1}>
-                  参考判例
-                </Typography>
-                <Stack spacing={1}>
-                  {selectedCase.precedents.map((item) => (
-                    <Chip
-                      key={item}
-                      icon={<TrendingUpIcon />}
-                      label={item}
-                      variant="outlined"
-                      sx={{
-                        justifyContent: "flex-start",
-                        height: "auto",
-                        py: 0.5,
-                      }}
-                    />
-                  ))}
-                </Stack>
-              </Grid>
-            </Grid>
-
-            <Divider sx={{ my: 2.5 }} />
-
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              justifyContent="space-between"
-              alignItems={{ xs: "flex-start", sm: "center" }}
-              spacing={1.5}
-            >
-              <Box>
-                <Typography variant="subtitle2">建议动作</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {selectedCase.recommendation}
-                </Typography>
-              </Box>
-              {isSelectedCaseWatched ? (
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                  <Button
-                    variant="outlined"
-                    color="success"
-                    startIcon={<CheckCircleOutlineIcon />}
-                    disabled
-                  >
-                    已加入监控
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="secondary"
-                    startIcon={<VisibilityIcon />}
-                    onClick={onGoMonitor}
-                  >
-                    前往鹰眼查看
-                  </Button>
-                </Stack>
-              ) : (
-                <Button variant="contained" onClick={onAddToWatchlist}>
-                  加入鹰眼监控
-                </Button>
-              )}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mb={2}>
+              <Button
+                size="small"
+                variant={detailStage >= 2 ? "outlined" : "contained"}
+                onClick={() => setDetailStage(2)}
+                disabled={detailStage >= 2}
+              >
+                显示法律依据
+              </Button>
+              <Button
+                size="small"
+                color="secondary"
+                variant={detailStage >= 3 ? "outlined" : "contained"}
+                onClick={() => setDetailStage(3)}
+                disabled={detailStage < 2 || detailStage >= 3}
+              >
+                显示判例与动作
+              </Button>
             </Stack>
+
+            {detailStage === 1 && (
+              <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+                已完成风险检测，请点击“显示法律依据”继续查看。
+              </Alert>
+            )}
+
+            {detailStage >= 2 && (
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" mb={1}>
+                    法律依据摘要
+                  </Typography>
+                  <Stack spacing={1}>
+                    {selectedCase.legalBasis.map((item) => (
+                      <Chip
+                        key={item}
+                        icon={<GavelOutlinedIcon />}
+                        label={item}
+                        variant="outlined"
+                        sx={{
+                          justifyContent: "flex-start",
+                          height: "auto",
+                          py: 0.5,
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" mb={1}>
+                    参考判例
+                  </Typography>
+                  {detailStage >= 3 ? (
+                    <Stack spacing={1}>
+                      {selectedCase.precedents.map((item) => (
+                        <Chip
+                          key={item}
+                          icon={<TrendingUpIcon />}
+                          label={item}
+                          variant="outlined"
+                          sx={{
+                            justifyContent: "flex-start",
+                            height: "auto",
+                            py: 0.5,
+                          }}
+                        />
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Alert severity="info" variant="outlined">
+                      已展示法律依据，请点击“显示判例与动作”继续。
+                    </Alert>
+                  )}
+                </Grid>
+              </Grid>
+            )}
+
+            {detailStage >= 3 && <Divider sx={{ my: 2.5 }} />}
+
+            {detailStage >= 3 && (
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                justifyContent="space-between"
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                spacing={1.5}
+              >
+                <Box>
+                  <Typography variant="subtitle2">建议动作</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedCase.recommendation}
+                  </Typography>
+                </Box>
+                {isSelectedCaseWatched ? (
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                    <Button
+                      variant="outlined"
+                      color="success"
+                      startIcon={<CheckCircleOutlineIcon />}
+                      disabled
+                    >
+                      已加入监控
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      startIcon={<VisibilityIcon />}
+                      onClick={onGoMonitor}
+                    >
+                      前往鹰眼查看
+                    </Button>
+                  </Stack>
+                ) : (
+                  <Button variant="contained" onClick={onAddToWatchlist}>
+                    加入鹰眼监控
+                  </Button>
+                )}
+              </Stack>
+            )}
           </CardContent>
         </Card>
       </Grid>

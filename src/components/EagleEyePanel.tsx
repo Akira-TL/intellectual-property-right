@@ -1,6 +1,7 @@
 import RadarIcon from "@mui/icons-material/Radar";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -10,6 +11,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
 import { MonitoringEvent, WatchTarget } from "../types";
 
 interface EagleEyePanelProps {
@@ -46,6 +48,8 @@ export function EagleEyePanel({
   onSimulateAlert,
   onAdvanceEventStatus,
 }: EagleEyePanelProps) {
+  const [showTimeline, setShowTimeline] = useState<boolean>(false);
+
   return (
     <Grid container spacing={2.5} className="fade-up stagger-2">
       <Grid item xs={12} md={4.5}>
@@ -86,6 +90,14 @@ export function EagleEyePanel({
             >
               模拟触发告警
             </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              sx={{ mt: 1 }}
+              onClick={() => setShowTimeline(true)}
+            >
+              查看巡检告警结果
+            </Button>
           </CardContent>
         </Card>
       </Grid>
@@ -101,77 +113,92 @@ export function EagleEyePanel({
               告警出现后可直接进入固证流程，减少维权窗口损失。
             </Typography>
 
-            <Stack spacing={1.2}>
-              {events.map((event) => (
-                <Box
-                  key={event.id}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 2,
-                    border: "1px solid rgba(239,108,0,0.24)",
-                    bgcolor: "rgba(239,108,0,0.05)",
-                  }}
-                >
-                  {(() => {
-                    const action = statusActionMap[event.status];
-                    return (
-                      <>
-                        <Stack
-                          direction={{ xs: "column", sm: "row" }}
-                          justifyContent="space-between"
-                          alignItems={{ xs: "flex-start", sm: "center" }}
-                          spacing={1}
-                        >
-                          <Typography fontWeight={700}>
-                            {event.linkTitle}
-                          </Typography>
-                          <Chip
-                            size="small"
-                            label={event.status}
-                            color={
-                              event.status === "已固证" ? "success" : "warning"
-                            }
-                          />
-                        </Stack>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          display="block"
-                          mt={0.5}
-                        >
-                          {event.time} | {event.platform}
-                        </Typography>
-                        <Typography variant="body2" mt={0.6}>
-                          {event.riskHint}
-                        </Typography>
-                        <Stack
-                          direction={{ xs: "column", sm: "row" }}
-                          spacing={0.9}
-                          mt={1.2}
-                          justifyContent="space-between"
-                          alignItems={{ xs: "flex-start", sm: "center" }}
-                        >
-                          <Typography variant="caption" color="text.secondary">
-                            {action.nextHint}
-                          </Typography>
-                          <Button
-                            size="small"
-                            variant={action.disabled ? "outlined" : "contained"}
-                            color={
-                              event.status === "处理中" ? "warning" : "primary"
-                            }
-                            disabled={action.disabled}
-                            onClick={() => onAdvanceEventStatus(event.id)}
+            {!showTimeline ? (
+              <Alert severity="info" variant="outlined">
+                请先在左侧点击“查看巡检告警结果”，再展示本次扫描命中列表。
+              </Alert>
+            ) : (
+              <Stack spacing={1.2}>
+                {events.map((event) => (
+                  <Box
+                    key={event.id}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: "1px solid rgba(239,108,0,0.24)",
+                      bgcolor: "rgba(239,108,0,0.05)",
+                    }}
+                  >
+                    {(() => {
+                      const action = statusActionMap[event.status];
+                      return (
+                        <>
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            justifyContent="space-between"
+                            alignItems={{ xs: "flex-start", sm: "center" }}
+                            spacing={1}
                           >
-                            {action.label}
-                          </Button>
-                        </Stack>
-                      </>
-                    );
-                  })()}
-                </Box>
-              ))}
-            </Stack>
+                            <Typography fontWeight={700}>
+                              {event.linkTitle}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={event.status}
+                              color={
+                                event.status === "已固证"
+                                  ? "success"
+                                  : "warning"
+                              }
+                            />
+                          </Stack>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            mt={0.5}
+                          >
+                            {event.time} | {event.platform}
+                          </Typography>
+                          <Typography variant="body2" mt={0.6}>
+                            {event.riskHint}
+                          </Typography>
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={0.9}
+                            mt={1.2}
+                            justifyContent="space-between"
+                            alignItems={{ xs: "flex-start", sm: "center" }}
+                          >
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {action.nextHint}
+                            </Typography>
+                            <Button
+                              size="small"
+                              variant={
+                                action.disabled ? "outlined" : "contained"
+                              }
+                              color={
+                                event.status === "处理中"
+                                  ? "warning"
+                                  : "primary"
+                              }
+                              disabled={action.disabled}
+                              onClick={() => onAdvanceEventStatus(event.id)}
+                            >
+                              {action.label}
+                            </Button>
+                          </Stack>
+                        </>
+                      );
+                    })()}
+                  </Box>
+                ))}
+              </Stack>
+            )}
           </CardContent>
         </Card>
       </Grid>

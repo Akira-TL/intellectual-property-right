@@ -4,9 +4,7 @@ import {
   ProphetCase,
   StrategyOption,
   WatchTarget,
-  DemoMode,
   HighlightItem,
-  ModeNarration,
   TechStackSection,
   AgentIntegrationConfig,
 } from "../types";
@@ -239,40 +237,10 @@ export const demoTechStack: TechStackSection[] = [
     items: [
       "结构化风险评估 schema",
       "前端状态机模拟链路流转",
-      "讲解信息与路演脚本联动",
+      "分阶段结果揭示与操作联动",
     ],
   },
 ];
-
-export const modeNarration: Record<DemoMode, ModeNarration> = {
-  prophet: {
-    title: "当前讲解重点：为什么发布前预判能降低风险",
-    bullets: [
-      "强调系统输出不是“能不能发”一句话，而是“风险等级 + 依据 + 动作建议”。",
-      "展示红橙黄绿分层后，说明团队如何按风险级别分配法务资源。",
-      "点出“可解释”价值：把创意与法务语言统一到一份报告里。",
-    ],
-    closingLine: "一句话收束：把侵权风险从事后赔付，前移为事前筛查。",
-  },
-  eagleeye: {
-    title: "当前讲解重点：从被动发现到主动巡检",
-    bullets: [
-      "说明人工巡查难以覆盖平台规模，机器巡检可持续运行。",
-      "模拟告警后强调“黄金窗口期”：发现越早，维权成本越低。",
-      "引出与法官助手联动：告警不是终点，而是固证入口。",
-    ],
-    closingLine: "一句话收束：把“发现侵权”从偶然事件变成标准流程。",
-  },
-  judgeassistant: {
-    title: "当前讲解重点：证据与策略的业务价值",
-    bullets: [
-      "展示证据包字段完整性，强调可追溯与不可篡改口径。",
-      "对比“立即投诉”与“持续取证诉讼”两条路线的收益与成本。",
-      "强调产品不替代律师，而是提升法务行动效率。",
-    ],
-    closingLine: "一句话收束：让维权决策从经验判断升级为数据判断。",
-  },
-};
 
 export const agentIntegrationConfig: AgentIntegrationConfig = {
   endpointUrl: "https://law.babelbeast.com/agent",

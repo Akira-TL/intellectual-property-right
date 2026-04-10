@@ -2,6 +2,7 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -29,6 +30,8 @@ export function JudgeAssistantPanel({
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>(
     strategies[0]?.id ?? "",
   );
+  const [showStrategyCompare, setShowStrategyCompare] =
+    useState<boolean>(false);
 
   return (
     <Grid container spacing={2.5} className="fade-up stagger-3">
@@ -88,6 +91,13 @@ export function JudgeAssistantPanel({
             >
               一键生成投诉文书
             </Button>
+            <Button
+              variant="outlined"
+              sx={{ ml: { xs: 0, sm: 1 }, mt: { xs: 1, sm: 0 } }}
+              onClick={() => setShowStrategyCompare(true)}
+            >
+              显示策略对比
+            </Button>
           </CardContent>
         </Card>
       </Grid>
@@ -102,69 +112,81 @@ export function JudgeAssistantPanel({
               结合传播规模、疑似获利和案例先例，给出行动优先级建议。
             </Typography>
 
-            <Stack spacing={1.5}>
-              {strategies.map((strategy) => (
-                <Box
-                  key={strategy.id}
-                  sx={{
-                    p: 1.8,
-                    borderRadius: 2,
-                    border: "1px solid",
-                    borderColor:
-                      selectedStrategyId === strategy.id
-                        ? "primary.main"
-                        : "rgba(11,79,108,0.14)",
-                    bgcolor:
-                      strategy.id === "strategy-fast"
-                        ? "rgba(46,125,50,0.08)"
-                        : "rgba(239,108,0,0.09)",
-                  }}
+            {!showStrategyCompare ? (
+              <Alert severity="info" variant="outlined">
+                请先在左侧确认并点击“显示策略对比”，再查看策略建议。
+              </Alert>
+            ) : (
+              <>
+                <Stack spacing={1.5}>
+                  {strategies.map((strategy) => (
+                    <Box
+                      key={strategy.id}
+                      sx={{
+                        p: 1.8,
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor:
+                          selectedStrategyId === strategy.id
+                            ? "primary.main"
+                            : "rgba(11,79,108,0.14)",
+                        bgcolor:
+                          strategy.id === "strategy-fast"
+                            ? "rgba(46,125,50,0.08)"
+                            : "rgba(239,108,0,0.09)",
+                      }}
+                    >
+                      <Typography variant="subtitle1" fontWeight={700}>
+                        {strategy.title}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        mt={0.3}
+                      >
+                        {strategy.summary}
+                      </Typography>
+                      <Typography variant="body2" mt={1}>
+                        <strong>预期收益：</strong>
+                        {strategy.expectedBenefit}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>成本：</strong>
+                        {strategy.cost}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>适用场景：</strong>
+                        {strategy.recommendedWhen}
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant={
+                          selectedStrategyId === strategy.id
+                            ? "contained"
+                            : "outlined"
+                        }
+                        sx={{ mt: 1.2 }}
+                        onClick={() => setSelectedStrategyId(strategy.id)}
+                      >
+                        {selectedStrategyId === strategy.id
+                          ? "当前策略"
+                          : "选择该策略"}
+                      </Button>
+                    </Box>
+                  ))}
+                </Stack>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  startIcon={<TaskAltIcon />}
+                  sx={{ mt: 2 }}
+                  onClick={() => onApplyStrategy(selectedStrategyId)}
+                  disabled={!selectedStrategyId}
                 >
-                  <Typography variant="subtitle1" fontWeight={700}>
-                    {strategy.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" mt={0.3}>
-                    {strategy.summary}
-                  </Typography>
-                  <Typography variant="body2" mt={1}>
-                    <strong>预期收益：</strong>
-                    {strategy.expectedBenefit}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>成本：</strong>
-                    {strategy.cost}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>适用场景：</strong>
-                    {strategy.recommendedWhen}
-                  </Typography>
-                  <Button
-                    size="small"
-                    variant={
-                      selectedStrategyId === strategy.id
-                        ? "contained"
-                        : "outlined"
-                    }
-                    sx={{ mt: 1.2 }}
-                    onClick={() => setSelectedStrategyId(strategy.id)}
-                  >
-                    {selectedStrategyId === strategy.id
-                      ? "当前策略"
-                      : "选择该策略"}
-                  </Button>
-                </Box>
-              ))}
-            </Stack>
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={<TaskAltIcon />}
-              sx={{ mt: 2 }}
-              onClick={() => onApplyStrategy(selectedStrategyId)}
-              disabled={!selectedStrategyId}
-            >
-              应用策略到执行清单
-            </Button>
+                  应用策略到执行清单
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       </Grid>

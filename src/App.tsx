@@ -1,10 +1,7 @@
-import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import BalanceIcon from "@mui/icons-material/Balance";
 import GavelIcon from "@mui/icons-material/Gavel";
 import InsightsIcon from "@mui/icons-material/Insights";
-import PlayCircleFilledWhiteIcon from "@mui/icons-material/PlayCircleFilledWhite";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import WarningRoundedIcon from "@mui/icons-material/WarningRounded";
@@ -14,21 +11,20 @@ import {
   AppBar,
   Box,
   Button,
+  CircularProgress,
   Chip,
   Container,
   Grid,
-  LinearProgress,
   Paper,
   Snackbar,
   Stack,
   Typography,
 } from "@mui/material";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { AgentIntegrationPanel } from "./components/AgentIntegrationPanel";
 import { DemoAnalyticsPanel } from "./components/DemoAnalyticsPanel";
 import { EagleEyePanel } from "./components/EagleEyePanel";
 import { JudgeAssistantPanel } from "./components/JudgeAssistantPanel";
-import { PitchCoachPanel } from "./components/PitchCoachPanel";
 import { ProphetPanel } from "./components/ProphetPanel";
 import { ShowcasePanel } from "./components/ShowcasePanel";
 import {
@@ -37,7 +33,6 @@ import {
   evidencePacket,
   initialMonitoringEvents,
   initialWatchTargets,
-  modeNarration,
   projectHighlights,
   prophetCases,
   strategyOptions,
@@ -52,10 +47,22 @@ type WorkspacePage =
   | "judgeassistant"
   | "agent";
 
+type DetectablePage = Exclude<WorkspacePage, "overview">;
+
+type RevealStage = "idle" | "checking" | "prompted" | "revealed";
+
 interface ToastState {
   open: boolean;
   message: string;
   severity: AlertColor;
+}
+
+interface WorkflowCopy {
+  goal: string;
+  startAction: string;
+  checkingHint: string;
+  promptedHint: string;
+  revealHint: string;
 }
 
 const pageMeta: Array<{
@@ -113,37 +120,68 @@ const routeToPageMap: Record<string, WorkspacePage> = {
   "/agent": "agent",
 };
 
-const tourSteps: Array<{
-  page: WorkspacePage;
-  title: string;
-  talkTrack: string;
-}> = [
-  {
-    page: "overview",
-    title: "产品价值开场",
-    talkTrack: "先讲业务痛点与三大模式结构，让评委快速建立全局认知。",
+const stageMeta: Record<
+  RevealStage,
+  { label: string; color: "default" | "info" | "warning" | "success" }
+> = {
+  idle: {
+    label: "待检测",
+    color: "default",
   },
-  {
-    page: "prophet",
-    title: "发布前预警",
-    talkTrack: "展示红橙黄绿分级、置信度和建议动作，强调不是法律结论。",
+  checking: {
+    label: "检测中",
+    color: "info",
   },
-  {
-    page: "eagleeye",
-    title: "监控与告警",
-    talkTrack: "模拟告警触发并推进状态，讲清可执行的运营闭环。",
+  prompted: {
+    label: "待查看提示",
+    color: "warning",
   },
-  {
-    page: "judgeassistant",
-    title: "固证与策略",
-    talkTrack: "比较策略路径并应用到执行清单，突出可落地性。",
+  revealed: {
+    label: "结果已展示",
+    color: "success",
   },
-  {
-    page: "agent",
-    title: "平台接入落地",
-    talkTrack: "说明 Endpoint、OAuth 回调和本地模型联调能力。",
+};
+
+const workflowCopy: Record<DetectablePage, WorkflowCopy> = {
+  prophet: {
+    goal: "先完成创意预检，再展示风险分层结论。",
+    startAction: "启动素材预检",
+    checkingHint: "正在比对商标、著作权与不正当竞争要素...",
+    promptedHint: "预检完成，已生成风险提示，请点击查看。",
+    revealHint: "已展示预检结论：请基于置信度与法律依据继续决策。",
   },
-];
+  eagleeye: {
+    goal: "先触发巡检扫描，再提示疑似侵权，再进入告警时间线。",
+    startAction: "启动全网巡检",
+    checkingHint: "正在抓取平台样本并计算风险特征...",
+    promptedHint: "巡检完成，发现疑似异常，请点击查看告警。",
+    revealHint: "已展示巡检告警：可继续推进状态到处理中或已固证。",
+  },
+  judgeassistant: {
+    goal: "先进行证据完整性校验，再展示策略对比。",
+    startAction: "启动证据校验",
+    checkingHint: "正在核验时间戳、证据链编号与哈希一致性...",
+    promptedHint: "证据校验完成，已生成策略提示，请点击查看。",
+    revealHint: "已展示策略建议：可选择策略并应用到执行清单。",
+  },
+  agent: {
+    goal: "先完成网关联通检测，再展示接入信息与健康调用结果。",
+    startAction: "启动接入检测",
+    checkingHint: "正在验证 Endpoint、OAuth 回调与模型网关连通性...",
+    promptedHint: "接入检测完成，已准备联调面板，请点击查看。",
+    revealHint: "已展示接入面板：可继续执行 health 与 agent 调用测试。",
+  },
+};
+
+const initialRevealStage: Record<WorkspacePage, RevealStage> = {
+  overview: "revealed",
+  prophet: "idle",
+  eagleeye: "idle",
+  judgeassistant: "idle",
+  agent: "idle",
+};
+
+// Business pages use detect -> prompt -> reveal, so users perceive system feedback before details appear.
 
 function parsePageFromPath(pathname: string): WorkspacePage {
   const normalized =
@@ -153,29 +191,9 @@ function parsePageFromPath(pathname: string): WorkspacePage {
   return routeToPageMap[normalized] ?? "overview";
 }
 
-function getStepIndexByPage(page: WorkspacePage): number {
-  const index = tourSteps.findIndex((step) => step.page === page);
-  return index >= 0 ? index : 0;
-}
-
-function clampStepIndex(index: number): number {
-  if (index < 0) {
-    return 0;
-  }
-
-  if (index >= tourSteps.length) {
-    return tourSteps.length - 1;
-  }
-
-  return index;
-}
-
 export default function App() {
   const [activePage, setActivePage] = useState<WorkspacePage>(() =>
     parsePageFromPath(window.location.pathname),
-  );
-  const [tourStepIndex, setTourStepIndex] = useState<number>(() =>
-    getStepIndexByPage(parsePageFromPath(window.location.pathname)),
   );
   const [selectedCaseId, setSelectedCaseId] = useState<string>(
     prophetCases[0].id,
@@ -185,12 +203,16 @@ export default function App() {
   const [events, setEvents] = useState<MonitoringEvent[]>(
     initialMonitoringEvents,
   );
+  const [pageRevealStage, setPageRevealStage] =
+    useState<Record<WorkspacePage, RevealStage>>(initialRevealStage);
   const [autoPlay, setAutoPlay] = useState<boolean>(false);
   const [toast, setToast] = useState<ToastState>({
     open: false,
     message: "",
     severity: "success",
   });
+
+  const inspectionTimerRef = useRef<Partial<Record<WorkspacePage, number>>>({});
 
   const selectedCase = useMemo(
     () =>
@@ -201,8 +223,6 @@ export default function App() {
 
   const activePageLabel =
     pageMeta.find((item) => item.key === activePage)?.label ?? "总览首页";
-
-  const activeTourStep = tourSteps[tourStepIndex];
 
   const isSelectedCaseWatched = useMemo(
     () => watchTargets.some((target) => target.name === selectedCase.title),
@@ -218,7 +238,6 @@ export default function App() {
     options?: { historyMode?: "push" | "replace" },
   ) => {
     setActivePage(page);
-    setTourStepIndex(getStepIndexByPage(page));
 
     const targetPath = pagePathMap[page];
     const mode = options?.historyMode ?? "push";
@@ -239,21 +258,39 @@ export default function App() {
     );
   };
 
-  const handleTourStepMove = (direction: -1 | 1) => {
-    const nextIndex = clampStepIndex(tourStepIndex + direction);
-    if (nextIndex === tourStepIndex) {
-      return;
+  const clearInspectionTimer = (page: WorkspacePage) => {
+    const timerId = inspectionTimerRef.current[page];
+    if (timerId) {
+      window.clearTimeout(timerId);
+      inspectionTimerRef.current[page] = undefined;
     }
-
-    const nextStep = tourSteps[nextIndex];
-    setTourStepIndex(nextIndex);
-    navigatePage(nextStep.page, { historyMode: "push" });
-    showToast(`导览步骤：${nextStep.title}`, "info");
   };
 
-  const handlePlayActiveTourStep = () => {
-    navigatePage(activeTourStep.page, { historyMode: "push" });
-    showToast(activeTourStep.talkTrack, "info");
+  const startInspection = (page: DetectablePage) => {
+    clearInspectionTimer(page);
+    setPageRevealStage((prev) => ({ ...prev, [page]: "checking" }));
+    showToast(workflowCopy[page].checkingHint, "info");
+
+    inspectionTimerRef.current[page] = window.setTimeout(() => {
+      setPageRevealStage((prev) => ({ ...prev, [page]: "prompted" }));
+      showToast(workflowCopy[page].promptedHint, "success");
+      inspectionTimerRef.current[page] = undefined;
+    }, 1400);
+  };
+
+  const confirmInspection = (page: DetectablePage) => {
+    clearInspectionTimer(page);
+    setPageRevealStage((prev) => ({ ...prev, [page]: "revealed" }));
+    showToast(workflowCopy[page].revealHint, "info");
+  };
+
+  const resetInspection = (page: DetectablePage) => {
+    clearInspectionTimer(page);
+    setPageRevealStage((prev) => ({ ...prev, [page]: "idle" }));
+    showToast(
+      `已重置${pageMeta.find((item) => item.key === page)?.label}检测流程`,
+      "warning",
+    );
   };
 
   const handleAddToWatchlist = () => {
@@ -366,17 +403,25 @@ export default function App() {
     }
 
     setActivePage(canonicalPage);
-    setTourStepIndex(getStepIndexByPage(canonicalPage));
 
     const onPopState = () => {
       const page = parsePageFromPath(window.location.pathname);
       setActivePage(page);
-      setTourStepIndex(getStepIndexByPage(page));
     };
 
     window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("popstate", onPopState);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      Object.values(inspectionTimerRef.current).forEach((timerId) => {
+        if (timerId) {
+          window.clearTimeout(timerId);
+        }
+      });
     };
   }, []);
 
@@ -398,6 +443,90 @@ export default function App() {
     };
   }, [autoPlay]);
 
+  const renderWorkflowGate = (page: DetectablePage) => {
+    const stage = pageRevealStage[page];
+    const copy = workflowCopy[page];
+    const stageView = stageMeta[stage];
+
+    return (
+      <Paper
+        className="workflow-gate fade-up"
+        sx={{ p: { xs: 2, md: 2.2 }, mb: 2.2 }}
+      >
+        <Stack spacing={1.4}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            spacing={1}
+          >
+            <Typography variant="subtitle1" fontWeight={700}>
+              交互门控流程
+            </Typography>
+            <Chip
+              label={`当前状态：${stageView.label}`}
+              color={stageView.color}
+              size="small"
+            />
+          </Stack>
+
+          <Typography variant="body2" color="text.secondary">
+            {copy.goal}
+          </Typography>
+
+          {stage === "checking" && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CircularProgress size={18} />
+              <Typography variant="body2" color="text.secondary">
+                {copy.checkingHint}
+              </Typography>
+            </Stack>
+          )}
+
+          {stage === "prompted" && (
+            <Alert severity="success" variant="outlined">
+              {copy.promptedHint}
+            </Alert>
+          )}
+
+          {stage === "revealed" && (
+            <Alert severity="info" variant="outlined">
+              已完成当前阶段，可点击“重新执行检测”再次走流程。
+            </Alert>
+          )}
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Button
+              variant="contained"
+              onClick={() => startInspection(page)}
+              disabled={stage === "checking"}
+            >
+              {stage === "idle"
+                ? copy.startAction
+                : stage === "checking"
+                  ? "检测中..."
+                  : "重新执行检测"}
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              disabled={stage !== "prompted"}
+              onClick={() => confirmInspection(page)}
+            >
+              查看检测提示
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
+    );
+  };
+
+  const renderDetectionBanner = (page: DetectablePage) => (
+    <Alert className="workflow-banner" severity="success" sx={{ mb: 2 }}>
+      {workflowCopy[page].revealHint}
+    </Alert>
+  );
+
   const renderOverviewPage = () => (
     <Stack spacing={2.5} className="fade-up">
       <Paper
@@ -414,7 +543,7 @@ export default function App() {
             让每次创意发布，都有可解释的风险护栏
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            通过多页面分工，分别聚焦预警、监控、固证和接入联调，避免信息堆叠，路演讲解更清晰。
+            通过多页面分工，分别聚焦预警、监控、固证和接入联调，避免信息堆叠。
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <Button
@@ -442,7 +571,7 @@ export default function App() {
               预言家
             </Typography>
             <Typography variant="body2" color="text.secondary" mb={1.2}>
-              适合在路演前 30 秒快速展示红橙黄绿分层输出。
+              快速展示红橙黄绿分层输出与可解释结果。
             </Typography>
             <Button
               size="small"
@@ -506,17 +635,44 @@ export default function App() {
     </Stack>
   );
 
-  const renderModePageHeader = (title: string, subtitle: string) => (
+  const renderModePageHeader = (
+    page: DetectablePage,
+    title: string,
+    subtitle: string,
+  ) => (
     <Paper
       className="page-header"
       sx={{ p: { xs: 2, md: 2.4 }, borderRadius: 2.5, mb: 2.2 }}
     >
-      <Typography variant="h5" mb={0.6}>
-        {title}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {subtitle}
-      </Typography>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        spacing={1}
+      >
+        <Box>
+          <Typography variant="h5" mb={0.6}>
+            {title}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {subtitle}
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip
+            size="small"
+            color={stageMeta[pageRevealStage[page]].color}
+            label={stageMeta[pageRevealStage[page]].label}
+          />
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => resetInspection(page)}
+          >
+            重置流程
+          </Button>
+        </Stack>
+      </Stack>
     </Paper>
   );
 
@@ -526,71 +682,101 @@ export default function App() {
     }
 
     if (activePage === "prophet") {
+      const stage = pageRevealStage.prophet;
       return (
         <>
           {renderModePageHeader(
+            "prophet",
             "预言家模式：发布前风险预警",
             "先判断再发布，避免热点创意上线后被动维权。",
           )}
-          <PitchCoachPanel mode="prophet" note={modeNarration.prophet} />
-          <ProphetPanel
-            cases={prophetCases}
-            selectedCase={selectedCase}
-            isSelectedCaseWatched={isSelectedCaseWatched}
-            onSelectCase={setSelectedCaseId}
-            onAddToWatchlist={handleAddToWatchlist}
-            onGoMonitor={handleGoMonitor}
-          />
+          {stage !== "revealed" ? (
+            renderWorkflowGate("prophet")
+          ) : (
+            <>
+              {renderDetectionBanner("prophet")}
+              <ProphetPanel
+                cases={prophetCases}
+                selectedCase={selectedCase}
+                isSelectedCaseWatched={isSelectedCaseWatched}
+                onSelectCase={setSelectedCaseId}
+                onAddToWatchlist={handleAddToWatchlist}
+                onGoMonitor={handleGoMonitor}
+              />
+            </>
+          )}
         </>
       );
     }
 
     if (activePage === "eagleeye") {
+      const stage = pageRevealStage.eagleeye;
       return (
         <>
           {renderModePageHeader(
+            "eagleeye",
             "鹰眼模式：全网监控告警",
             "把告警发现、处理中、已固证变成可推进的标准化动作。",
           )}
-          <PitchCoachPanel mode="eagleeye" note={modeNarration.eagleeye} />
-          <EagleEyePanel
-            watchTargets={watchTargets}
-            events={events}
-            onSimulateAlert={handleSimulateAlert}
-            onAdvanceEventStatus={handleAdvanceEventStatus}
-          />
+          {stage !== "revealed" ? (
+            renderWorkflowGate("eagleeye")
+          ) : (
+            <>
+              {renderDetectionBanner("eagleeye")}
+              <EagleEyePanel
+                watchTargets={watchTargets}
+                events={events}
+                onSimulateAlert={handleSimulateAlert}
+                onAdvanceEventStatus={handleAdvanceEventStatus}
+              />
+            </>
+          )}
         </>
       );
     }
 
     if (activePage === "judgeassistant") {
+      const stage = pageRevealStage.judgeassistant;
       return (
         <>
           {renderModePageHeader(
+            "judgeassistant",
             "法官助手模式：固证与维权策略",
             "先把证据做厚，再比较行动路径，提升维权确定性。",
           )}
-          <PitchCoachPanel
-            mode="judgeassistant"
-            note={modeNarration.judgeassistant}
-          />
-          <JudgeAssistantPanel
-            evidence={evidencePacket}
-            strategies={strategyOptions}
-            onGenerateDocs={handleGenerateDocs}
-            onApplyStrategy={handleApplyStrategy}
-          />
+          {stage !== "revealed" ? (
+            renderWorkflowGate("judgeassistant")
+          ) : (
+            <>
+              {renderDetectionBanner("judgeassistant")}
+              <JudgeAssistantPanel
+                evidence={evidencePacket}
+                strategies={strategyOptions}
+                onGenerateDocs={handleGenerateDocs}
+                onApplyStrategy={handleApplyStrategy}
+              />
+            </>
+          )}
         </>
       );
     }
 
+    const stage = pageRevealStage.agent;
     return (
       <>
         {renderModePageHeader(
+          "agent",
           "Agent 接入中心",
           "配置平台接入、验证网关健康、测试本地模型联调。",
         )}
-        <AgentIntegrationPanel config={agentIntegrationConfig} />
+        {stage !== "revealed" ? (
+          renderWorkflowGate("agent")
+        ) : (
+          <>
+            {renderDetectionBanner("agent")}
+            <AgentIntegrationPanel config={agentIntegrationConfig} />
+          </>
+        )}
       </>
     );
   };
@@ -665,6 +851,15 @@ export default function App() {
                 >
                   {pageMeta.map((item) => {
                     const active = item.key === activePage;
+                    const stageLabel =
+                      item.key === "overview"
+                        ? "即时可见"
+                        : stageMeta[pageRevealStage[item.key]].label;
+                    const stageClass =
+                      item.key === "overview"
+                        ? "overview"
+                        : pageRevealStage[item.key];
+
                     return (
                       <Button
                         key={item.key}
@@ -686,6 +881,12 @@ export default function App() {
                           </Typography>
                           <Typography variant="caption" sx={{ opacity: 0.85 }}>
                             {item.desc}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            className={`nav-stage ${stageClass}`}
+                          >
+                            {stageLabel}
                           </Typography>
                         </Stack>
                       </Button>
@@ -713,75 +914,8 @@ export default function App() {
                   <Typography variant="subtitle2">交互提示</Typography>
                 </Stack>
                 <Typography variant="caption" color="text.secondary">
-                  当前已拆分为独立页面流程，适合按“总览 - 业务模式 -
-                  接入联调”逐页讲解。
+                  页面会先进入检测流程，再提示你查看结果，不再点击即展示全部内容。
                 </Typography>
-              </Paper>
-
-              <Paper
-                className="tour-panel"
-                sx={{
-                  p: 1.2,
-                  mt: 1,
-                  borderRadius: 1.8,
-                  bgcolor: "rgba(214,121,40,0.06)",
-                }}
-              >
-                <Typography variant="subtitle2" mb={0.4}>
-                  路演导览
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                  mb={0.7}
-                >
-                  第 {tourStepIndex + 1}/{tourSteps.length} 步：
-                  {activeTourStep.title}
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={((tourStepIndex + 1) / tourSteps.length) * 100}
-                  sx={{ mb: 0.7, height: 6, borderRadius: 5 }}
-                />
-                <Typography variant="caption" color="text.secondary">
-                  {activeTourStep.talkTrack}
-                </Typography>
-                <Stack direction="row" spacing={0.8} mt={1}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={
-                      <ArrowBackIosNewIcon sx={{ fontSize: "0.8rem" }} />
-                    }
-                    onClick={() => handleTourStepMove(-1)}
-                    disabled={tourStepIndex === 0}
-                    sx={{ flex: 1 }}
-                  >
-                    上一步
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    startIcon={<PlayCircleFilledWhiteIcon />}
-                    onClick={handlePlayActiveTourStep}
-                    sx={{ flex: 1.2 }}
-                  >
-                    讲这一页
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    endIcon={
-                      <ArrowForwardIosIcon sx={{ fontSize: "0.8rem" }} />
-                    }
-                    onClick={() => handleTourStepMove(1)}
-                    disabled={tourStepIndex === tourSteps.length - 1}
-                    sx={{ flex: 1 }}
-                  >
-                    下一步
-                  </Button>
-                </Stack>
               </Paper>
             </Paper>
           </Grid>
@@ -801,6 +935,11 @@ export default function App() {
         <Stack direction="row" spacing={0.6} sx={{ p: 0.8, overflowX: "auto" }}>
           {pageMeta.map((item) => {
             const active = item.key === activePage;
+            const stageLabel =
+              item.key === "overview"
+                ? "总览"
+                : stageMeta[pageRevealStage[item.key]].label;
+
             return (
               <Button
                 key={item.key}
@@ -819,6 +958,13 @@ export default function App() {
                   {item.icon}
                   <Typography variant="caption" lineHeight={1.1}>
                     {item.label.replace("模式", "")}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    className="dock-stage"
+                    lineHeight={1.1}
+                  >
+                    {stageLabel}
                   </Typography>
                 </Stack>
               </Button>

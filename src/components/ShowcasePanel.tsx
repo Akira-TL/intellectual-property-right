@@ -59,7 +59,7 @@ export function ShowcasePanel({
       >
         <Typography variant="h6">项目亮点与技术栈叙述</Typography>
         <Chip
-          label="路演讲解增强区"
+          label="价值展示区"
           size="small"
           color="primary"
           variant="outlined"
@@ -95,7 +95,7 @@ export function ShowcasePanel({
                 color="primary.main"
                 fontWeight={700}
               >
-                路演说法：{item.pitchValue}
+                价值说明：{item.pitchValue}
               </Typography>
             </Box>
           </Grid>

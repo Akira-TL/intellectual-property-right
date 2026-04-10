@@ -362,7 +362,8 @@ export default defineConfig({
     plugins: [react(), createAgentBridgePlugin()],
     server: {
         port: 5174,
-        host: "0.0.0.0"
+        host: "0.0.0.0",
+        allowedHosts: ["law.babelbeast.com"]
     },
     preview: {
         port: 5174,
