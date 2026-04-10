@@ -1,0 +1,86 @@
+openapi: 3.1.0
+info:
+  title: Magic Mirror Agent API
+  version: 1.0.0
+  description: AgentPit 对接用智能体接口，网关转发到本地 Ollama。
+servers:
+  - url: https://law.babelbeast.com
+paths:
+  /agent:
+    post:
+      summary: 调用智能体
+      description: 接收用户输入并返回智能体回复。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input:
+                  type: string
+                  description: 单条输入文本
+                prompt:
+                  type: string
+                  description: 兼容字段
+                query:
+                  type: string
+                  description: 兼容字段
+                system:
+                  type: string
+                  description: 可选系统提示词
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                        enum: [system, user, assistant]
+                      content:
+                        oneOf:
+                          - type: string
+                          - type: object
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  id:
+                    type: string
+                  model:
+                    type: string
+                  output:
+                    type: string
+                  usage:
+                    type: object
+  /agent/health:
+    get:
+      summary: 健康检查
+      responses:
+        "200":
+          description: 服务状态
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  message:
+                    type: string
+                  model:
+                    type: string
+                  timestamp:
+                    type: string
+  /agent/openapi.json:
+    get:
+      summary: 获取 JSON 版 OpenAPI
+      responses:
+        "200":
+          description: OpenAPI JSON

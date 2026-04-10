@@ -1,0 +1,9 @@
+{
+    "api": {
+        "baseUrl": "http://localhost/v1",
+        "timeout": 5000,
+        "key": "OLLAMA_API_KEY_OR_PLACEHOLDER",
+        "model": "qwen3.5:4b",
+        "max_tokens": 10240
+    }
+}
