@@ -1,5 +1,7 @@
 import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import {
   Box,
   Button,
@@ -20,8 +22,10 @@ import { ProphetCase, RiskColor } from "../types";
 interface ProphetPanelProps {
   cases: ProphetCase[];
   selectedCase: ProphetCase;
+  isSelectedCaseWatched: boolean;
   onSelectCase: (caseId: string) => void;
   onAddToWatchlist: () => void;
+  onGoMonitor: () => void;
 }
 
 const riskTheme: Record<
@@ -62,8 +66,10 @@ const riskTheme: Record<
 export function ProphetPanel({
   cases,
   selectedCase,
+  isSelectedCaseWatched,
   onSelectCase,
   onAddToWatchlist,
+  onGoMonitor,
 }: ProphetPanelProps) {
   const riskView = riskTheme[selectedCase.riskColor];
   const confidenceValue = Math.round(selectedCase.confidence * 100);
@@ -205,9 +211,30 @@ export function ProphetPanel({
                   {selectedCase.recommendation}
                 </Typography>
               </Box>
-              <Button variant="contained" onClick={onAddToWatchlist}>
-                加入鹰眼监控
-              </Button>
+              {isSelectedCaseWatched ? (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <Button
+                    variant="outlined"
+                    color="success"
+                    startIcon={<CheckCircleOutlineIcon />}
+                    disabled
+                  >
+                    已加入监控
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    startIcon={<VisibilityIcon />}
+                    onClick={onGoMonitor}
+                  >
+                    前往鹰眼查看
+                  </Button>
+                </Stack>
+              ) : (
+                <Button variant="contained" onClick={onAddToWatchlist}>
+                  加入鹰眼监控
+                </Button>
+              )}
             </Stack>
           </CardContent>
         </Card>

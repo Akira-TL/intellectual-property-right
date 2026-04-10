@@ -16,12 +16,35 @@ interface EagleEyePanelProps {
   watchTargets: WatchTarget[];
   events: MonitoringEvent[];
   onSimulateAlert: () => void;
+  onAdvanceEventStatus: (eventId: string) => void;
 }
+
+const statusActionMap: Record<
+  MonitoringEvent["status"],
+  { label: string; nextHint: string; disabled: boolean }
+> = {
+  待复核: {
+    label: "标记为处理中",
+    nextHint: "进入人工复核与证据比对",
+    disabled: false,
+  },
+  处理中: {
+    label: "标记为已固证",
+    nextHint: "完成证据包整理并准备投诉",
+    disabled: false,
+  },
+  已固证: {
+    label: "流程已完成",
+    nextHint: "可进入法官助手继续策略评估",
+    disabled: true,
+  },
+};
 
 export function EagleEyePanel({
   watchTargets,
   events,
   onSimulateAlert,
+  onAdvanceEventStatus,
 }: EagleEyePanelProps) {
   return (
     <Grid container spacing={2.5} className="fade-up stagger-2">
@@ -89,30 +112,63 @@ export function EagleEyePanel({
                     bgcolor: "rgba(239,108,0,0.05)",
                   }}
                 >
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", sm: "center" }}
-                    spacing={1}
-                  >
-                    <Typography fontWeight={700}>{event.linkTitle}</Typography>
-                    <Chip
-                      size="small"
-                      label={event.status}
-                      color={event.status === "已固证" ? "success" : "warning"}
-                    />
-                  </Stack>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    display="block"
-                    mt={0.5}
-                  >
-                    {event.time} | {event.platform}
-                  </Typography>
-                  <Typography variant="body2" mt={0.6}>
-                    {event.riskHint}
-                  </Typography>
+                  {(() => {
+                    const action = statusActionMap[event.status];
+                    return (
+                      <>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          justifyContent="space-between"
+                          alignItems={{ xs: "flex-start", sm: "center" }}
+                          spacing={1}
+                        >
+                          <Typography fontWeight={700}>
+                            {event.linkTitle}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={event.status}
+                            color={
+                              event.status === "已固证" ? "success" : "warning"
+                            }
+                          />
+                        </Stack>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          display="block"
+                          mt={0.5}
+                        >
+                          {event.time} | {event.platform}
+                        </Typography>
+                        <Typography variant="body2" mt={0.6}>
+                          {event.riskHint}
+                        </Typography>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={0.9}
+                          mt={1.2}
+                          justifyContent="space-between"
+                          alignItems={{ xs: "flex-start", sm: "center" }}
+                        >
+                          <Typography variant="caption" color="text.secondary">
+                            {action.nextHint}
+                          </Typography>
+                          <Button
+                            size="small"
+                            variant={action.disabled ? "outlined" : "contained"}
+                            color={
+                              event.status === "处理中" ? "warning" : "primary"
+                            }
+                            disabled={action.disabled}
+                            onClick={() => onAdvanceEventStatus(event.id)}
+                          >
+                            {action.label}
+                          </Button>
+                        </Stack>
+                      </>
+                    );
+                  })()}
                 </Box>
               ))}
             </Stack>

@@ -47,7 +47,10 @@ export function ShowcasePanel({
   );
 
   return (
-    <Paper className="fade-up" sx={{ p: { xs: 2, md: 2.4 }, borderRadius: 4 }}>
+    <Paper
+      className="fade-up"
+      sx={{ p: { xs: 2, md: 2.4 }, borderRadius: 2.5 }}
+    >
       <Stack
         direction="row"
         justifyContent="space-between"

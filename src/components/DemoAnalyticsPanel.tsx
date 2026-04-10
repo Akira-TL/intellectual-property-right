@@ -57,7 +57,7 @@ export function DemoAnalyticsPanel({
   return (
     <Paper
       className="fade-up"
-      sx={{ p: { xs: 2, md: 2.4 }, borderRadius: 4, mb: 2.5 }}
+      sx={{ p: { xs: 2, md: 2.4 }, borderRadius: 2.5, mb: 2.5 }}
     >
       <Stack
         direction={{ xs: "column", sm: "row" }}

@@ -82,7 +82,7 @@ export function AgentIntegrationPanel({ config }: AgentIntegrationPanelProps) {
   return (
     <Paper
       className="fade-up"
-      sx={{ p: { xs: 2, md: 2.4 }, borderRadius: 4, mb: 2.5 }}
+      sx={{ p: { xs: 2, md: 2.4 }, borderRadius: 2.5, mb: 2.5 }}
     >
       <Stack direction="row" alignItems="center" spacing={1} mb={1.2}>
         <SmartToyIcon color="primary" />

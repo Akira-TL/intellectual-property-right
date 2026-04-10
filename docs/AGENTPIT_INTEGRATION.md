@@ -23,8 +23,7 @@ https://law.babelbeast.com
 
 ### 3) OAuth 回调地址（自动计算）
 
-预期值：
-https://law.babelbeast.com/auth/callback
+https://law.babelbeast.com/api/auth/agentpit/callback
 
 说明：
 
