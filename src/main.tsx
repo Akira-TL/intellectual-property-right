@@ -6,11 +6,16 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { OAuthCallbackPage } from "./components/OAuthCallbackPage";
+import { SsoCallbackPage } from "./components/SsoCallbackPage";
 import "./styles.css";
 import theme from "./theme";
 
 const RootComponent =
-  window.location.pathname === "/auth/callback" ? OAuthCallbackPage : App;
+  window.location.pathname === "/auth/sso/callback"
+    ? SsoCallbackPage
+    : window.location.pathname === "/auth/callback"
+      ? OAuthCallbackPage
+      : App;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

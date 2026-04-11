@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  agents      Agent[]
+  apiKeys     ApiKey[]
+  tokenUsages TokenUsage[]
+  apps        Application[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
+
+  @@map("apbase_User")
+}
+
+model Agent {
+  id          String       @id @default(cuid())
+  name        String
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenUsages TokenUsage[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
+
+  @@index([userId])
+  @@map("apbase_Agent")
+}
+
+model Application {
+  id          String       @id @default(cuid())
+  name        String
+  status      AppStatus    @default(ACTIVE)
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  apiKeys     ApiKey[]
+  tokenUsages TokenUsage[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
+
+  @@index([userId])
+  @@map("apbase_Application")
+}
+
+model ApiKey {
+  id            String      @id @default(cuid())
+  key           String      @unique
+  userId        String
+  applicationId String
+  expiresAt     DateTime?
+  lastUsedAt    DateTime?
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @default(now()) @updatedAt
+
+  @@index([userId])
+  @@index([applicationId])
+  @@map("apbase_ApiKey")
+}
+
+model TokenUsage {
+  id            String      @id @default(cuid())
+  agentId       String
+  applicationId String
+  userId        String
+  tokensUsed    Int
+  inputTokens   Int?
+  outputTokens  Int?
+  startedAt     DateTime
+  endedAt       DateTime
+  modelName     String?
+  requestId     String?
+  metadata      Json?
+  agent         Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @default(now()) @updatedAt
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([applicationId])
+  @@index([createdAt])
+  @@map("apbase_TokenUsage")
+}

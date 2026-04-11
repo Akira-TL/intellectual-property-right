@@ -5,5 +5,14 @@
         "key": "OLLAMA_API_KEY_OR_PLACEHOLDER",
         "model": "qwen3.5:4b",
         "max_tokens": 10240
+    },
+    "oauth": {
+        "authorizeUrl": "https://app.agentpit.io/api/oauth/authorize",
+        "tokenUrl": "https://app.agentpit.io/api/oauth/token",
+        "userInfoUrl": "https://app.agentpit.io/api/oauth/userinfo",
+        "clientId": "cmnt4hprp000g60m31zsrs4su",
+        "clientSecret": "cmnt4hprp000h60m3js6kjfp4",
+        "redirectUri": "https://law.babelbeast.com/api/auth/agentpit/callback",
+        "ssoCallbackPath": "/auth/sso/callback"
     }
 }

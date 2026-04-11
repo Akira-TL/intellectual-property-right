@@ -1,6 +1,8 @@
 import CloudSyncIcon from "@mui/icons-material/CloudSync";
 import LinkIcon from "@mui/icons-material/Link";
+import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
 import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
+import PowerSettingsNewRoundedIcon from "@mui/icons-material/PowerSettingsNewRounded";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import {
   Alert,
@@ -14,18 +16,71 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AgentHealthStatus, AgentIntegrationConfig } from "../types";
+import {
+  type AgentpitSession,
+  buildSsoEntryUrl,
+  clearAgentpitSession,
+  markSsoAttempted,
+  readAgentpitSession,
+  shouldAutoSso,
+} from "../utils/ssoHelper";
 
 interface AgentIntegrationPanelProps {
   config: AgentIntegrationConfig;
 }
 
+interface TokenReportItem {
+  id: string;
+  agentId: string;
+  tokensUsed: number;
+  startedAt: string;
+  endedAt: string;
+  createdAt: string;
+  apiKeyPrefix?: string;
+}
+
 export function AgentIntegrationPanel({ config }: AgentIntegrationPanelProps) {
   const [health, setHealth] = useState<AgentHealthStatus | null>(null);
   const [agentReply, setAgentReply] = useState<string>("");
+  const [reportFeedback, setReportFeedback] = useState<string>("");
+  const [reportHistory, setReportHistory] = useState<TokenReportItem[]>([]);
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [loadingAsk, setLoadingAsk] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [loadingReportHistory, setLoadingReportHistory] = useState(false);
+  const [authSession, setAuthSession] = useState<AgentpitSession | null>(() =>
+    readAgentpitSession(),
+  );
+
+  const ssoError = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("sso_error");
+  }, []);
+
+  useEffect(() => {
+    if (authSession?.token) {
+      return;
+    }
+
+    if (!shouldAutoSso()) {
+      return;
+    }
+
+    markSsoAttempted();
+    window.location.href = buildSsoEntryUrl();
+  }, [authSession?.token]);
+
+  const handleSsoLogin = () => {
+    markSsoAttempted();
+    window.location.href = buildSsoEntryUrl();
+  };
+
+  const handleClearSession = () => {
+    clearAgentpitSession();
+    setAuthSession(null);
+  };
 
   const testHealth = async () => {
     setLoadingHealth(true);
@@ -79,6 +134,87 @@ export function AgentIntegrationPanel({ config }: AgentIntegrationPanelProps) {
     }
   };
 
+  const fetchReportHistory = async () => {
+    setLoadingReportHistory(true);
+    try {
+      const response = await fetch("/api/v1/tokens/report?limit=6", {
+        method: "GET",
+      });
+      const data = (await response.json()) as {
+        success?: boolean;
+        data?: { items?: TokenReportItem[] };
+      };
+
+      if (!response.ok || !data.success) {
+        setReportFeedback("读取上报记录失败");
+        return;
+      }
+
+      setReportHistory(data.data?.items ?? []);
+    } catch (error) {
+      setReportFeedback(
+        `读取上报记录异常：${error instanceof Error ? error.message : "unknown"}`,
+      );
+    } finally {
+      setLoadingReportHistory(false);
+    }
+  };
+
+  const reportTokenUsage = async () => {
+    setLoadingReport(true);
+    const now = new Date();
+    const startedAt = new Date(now.getTime() - 4200).toISOString();
+    const endedAt = now.toISOString();
+
+    try {
+      const response = await fetch("/api/v1/tokens/report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer agp_demo_key",
+        },
+        body: JSON.stringify({
+          agentId: "agent_demo_001",
+          tokensUsed: 1532,
+          inputTokens: 1014,
+          outputTokens: 518,
+          startedAt,
+          endedAt,
+          modelName: config.modelName,
+          requestId: `req_${Date.now()}`,
+          metadata: {
+            scene: "agentpit-panel",
+            channel: "manual",
+          },
+        }),
+      });
+
+      const data = (await response.json()) as {
+        success?: boolean;
+        data?: TokenReportItem;
+        error?: string;
+      };
+
+      if (!response.ok || !data.success) {
+        setReportFeedback(`上报失败：${data.error ?? "unknown"}`);
+        return;
+      }
+
+      setReportFeedback(`上报成功：记录 ${data.data?.id ?? "unknown"}`);
+      await fetchReportHistory();
+    } catch (error) {
+      setReportFeedback(
+        `上报异常：${error instanceof Error ? error.message : "unknown"}`,
+      );
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchReportHistory();
+  }, []);
+
   return (
     <Paper
       className="fade-up"
@@ -93,6 +229,19 @@ export function AgentIntegrationPanel({ config }: AgentIntegrationPanelProps) {
         下面字段可直接用于 AgentPit 技术配置页面，已对齐本地 Ollama 网关与 HTTPS
         域名。
       </Typography>
+
+      {ssoError && (
+        <Alert severity="warning" sx={{ mb: 1.5 }}>
+          自动授权未完成（{ssoError}），可点击下方“agentpit 授权登陆”手动重试。
+        </Alert>
+      )}
+
+      {authSession?.token && (
+        <Alert severity="success" sx={{ mb: 1.5 }}>
+          已完成 AgentPit 授权登录
+          {authSession.user?.email && `（${String(authSession.user.email)}）`}
+        </Alert>
+      )}
 
       <Grid container spacing={1.2} mb={1.8}>
         <Grid item xs={12} md={6}>
@@ -135,6 +284,58 @@ export function AgentIntegrationPanel({ config }: AgentIntegrationPanelProps) {
               </Typography>
             </CardContent>
           </Card>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={1.2} mb={1.8}>
+        <Grid item xs={12} md={6}>
+          <Box
+            sx={{
+              p: 1.2,
+              borderRadius: 2,
+              border: "1px solid rgba(11,79,108,0.14)",
+              bgcolor: "rgba(11,79,108,0.03)",
+            }}
+          >
+            <Typography variant="subtitle2" fontWeight={700}>
+              OAuth2 端点
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              authorize: {config.oauthAuthorizeUrl}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              token: {config.oauthTokenUrl}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              userinfo: {config.oauthUserInfoUrl}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              前端回调页: {config.ssoCallbackPath}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              token 上报: {config.tokenReportPath}
+            </Typography>
+          </Box>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Box
+            sx={{
+              p: 1.2,
+              borderRadius: 2,
+              border: "1px solid rgba(11,79,108,0.14)",
+              bgcolor: "rgba(11,79,108,0.03)",
+            }}
+          >
+            <Typography variant="subtitle2" fontWeight={700}>
+              OAuth2 凭证
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Client ID：{config.oauthClientId}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Client Secret：{config.oauthClientSecret}
+            </Typography>
+          </Box>
         </Grid>
       </Grid>
 
@@ -197,6 +398,23 @@ export function AgentIntegrationPanel({ config }: AgentIntegrationPanelProps) {
 
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1.2} mb={1.2}>
         <Button
+          variant="contained"
+          color="secondary"
+          startIcon={<LoginRoundedIcon />}
+          onClick={handleSsoLogin}
+        >
+          agentpit 授权登陆
+        </Button>
+        <Button
+          variant="outlined"
+          color="secondary"
+          startIcon={<PowerSettingsNewRoundedIcon />}
+          onClick={handleClearSession}
+          disabled={!authSession?.token}
+        >
+          清除授权缓存
+        </Button>
+        <Button
           variant="outlined"
           startIcon={<MedicalServicesIcon />}
           onClick={testHealth}
@@ -211,6 +429,22 @@ export function AgentIntegrationPanel({ config }: AgentIntegrationPanelProps) {
           disabled={loadingAsk}
         >
           {loadingAsk ? "调用中..." : "测试 /agent 回复"}
+        </Button>
+        <Button
+          variant="contained"
+          color="warning"
+          onClick={reportTokenUsage}
+          disabled={loadingReport}
+        >
+          {loadingReport ? "上报中..." : "模拟上报 token 消耗"}
+        </Button>
+        <Button
+          variant="outlined"
+          color="warning"
+          onClick={fetchReportHistory}
+          disabled={loadingReportHistory}
+        >
+          {loadingReportHistory ? "读取中..." : "查看最近上报记录"}
         </Button>
       </Stack>
 
@@ -235,6 +469,54 @@ export function AgentIntegrationPanel({ config }: AgentIntegrationPanelProps) {
           <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
             {agentReply}
           </Typography>
+        </Box>
+      )}
+
+      {reportFeedback && (
+        <Alert
+          severity={reportFeedback.startsWith("上报成功") ? "success" : "info"}
+          sx={{ mt: 1.2 }}
+        >
+          {reportFeedback}
+        </Alert>
+      )}
+
+      {reportHistory.length > 0 && (
+        <Box
+          sx={{
+            border: "1px solid rgba(11,79,108,0.16)",
+            borderRadius: 2,
+            p: 1.2,
+            bgcolor: "rgba(11,79,108,0.03)",
+            mt: 1.2,
+          }}
+        >
+          <Typography variant="subtitle2" fontWeight={700} mb={0.5}>
+            最近 token 上报记录
+          </Typography>
+          <Stack spacing={0.8}>
+            {reportHistory.map((item) => (
+              <Box
+                key={item.id}
+                sx={{
+                  p: 1,
+                  borderRadius: 1.6,
+                  border: "1px solid rgba(11,79,108,0.14)",
+                  bgcolor: "rgba(255,255,255,0.78)",
+                }}
+              >
+                <Typography variant="body2" fontWeight={700}>
+                  {item.id}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  agent: {item.agentId} | tokens: {item.tokensUsed}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  createdAt: {item.createdAt}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
         </Box>
       )}
     </Paper>

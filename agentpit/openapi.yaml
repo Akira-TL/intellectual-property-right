@@ -84,3 +84,93 @@ paths:
       responses:
         "200":
           description: OpenAPI JSON
+  /api/auth/agentpit/sso:
+    get:
+      summary: AgentPit SSO 入口
+      description: 将 returnUrl 编码到 state 并重定向到授权页
+      parameters:
+        - name: returnUrl
+          in: query
+          required: false
+          schema:
+            type: string
+            default: /
+      responses:
+        "302":
+          description: 跳转到 AgentPit OAuth 授权端
+  /api/auth/agentpit/callback:
+    get:
+      summary: AgentPit OAuth 回调
+      description: code 换 token，SSO 模式返回前端回调跳转页面
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 回调处理成功
+  /api/v1/tokens/report:
+    get:
+      summary: 查询最近 Token 上报记录
+      description: 返回按创建时间倒序的最近上报记录
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: 查询成功
+    post:
+      summary: Token 消耗上报
+      description: 使用 ApiKey Bearer Token 上报调用 token 消耗
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - agentId
+                - tokensUsed
+                - startedAt
+                - endedAt
+              properties:
+                agentId:
+                  type: string
+                tokensUsed:
+                  type: integer
+                inputTokens:
+                  type: integer
+                outputTokens:
+                  type: integer
+                startedAt:
+                  type: string
+                  format: date-time
+                endedAt:
+                  type: string
+                  format: date-time
+                modelName:
+                  type: string
+                requestId:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        "200":
+          description: 上报成功
+        "400":
+          description: 参数错误
+        "401":
+          description: 认证失败

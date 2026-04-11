@@ -62,7 +62,14 @@ export interface TechStackSection {
 export interface AgentIntegrationConfig {
   endpointUrl: string;
   webUiUrl: string;
+  oauthAuthorizeUrl: string;
+  oauthTokenUrl: string;
+  oauthUserInfoUrl: string;
   oauthCallbackUrl: string;
+  oauthClientId: string;
+  oauthClientSecret: string;
+  ssoCallbackPath: string;
+  tokenReportPath: string;
   openApiPath: string;
   skillPath: string;
   modelBaseUrl: string;
